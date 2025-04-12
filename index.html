@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Ova Browser</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #222;
+            color: #eee;
+        }
+
+        #tab-bar {
+            display: flex;
+            background-color: #333;
+            border-bottom: 1px solid #555;
+            overflow: hidden; /* Prevent scrollbar */
+            white-space: nowrap;
+        }
+
+        .tab {
+            padding: 8px 15px;
+            cursor: pointer;
+            border-right: 1px solid #555;
+            background-color: #444;
+            color: #eee;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .tab.active {
+            background-color: #222;
+        }
+
+        .close-tab {
+            margin-left: 5px;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        #address-bar {
+            padding: 10px;
+            background-color: #333;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #555;
+        }
+
+        #url-input {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            margin-right: 5px;
+            background-color: #444;
+            color: #eee;
+        }
+
+        #go-button, #home-button, #settings-button, #refresh-button, #back-button, #new-tab-button {
+            padding: 8px 15px;
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        #go-button:hover, #home-button:hover, #settings-button:hover, #refresh-button:hover, #back-button:hover, #new-tab-button:hover {
+            background-color: #005a9e;
+        }
+
+        #webview-container {
+            flex-grow: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .webview-tab {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: none;
+        }
+
+        .webview-tab.active {
+            display: block;
+        }
+
+        .webview-tab webview {
+            width: 100%;
+            height: 100%;
+        }
+
+        #settings-panel {
+            position: absolute;
+            top: 50px;
+            left: 10px;
+            background-color: #333;
+            border: 1px solid #555;
+            padding: 20px;
+            z-index: 100;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+            display: none;
+        }
+
+        #settings-panel label {
+            display: block;
+            margin-bottom: 10px;
+            color: #eee;
+        }
+
+        #search-engine-select {
+            background-color: #444;
+            color: #eee;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 5px;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="tab-bar">
+        <button id="new-tab-button">New Tab</button>
+    </div>
+    <div id="address-bar">
+        <button id="back-button">Back</button>
+        <button id="home-button">Home</button>
+        <input type="text" id="url-input" placeholder="Enter URL">
+        <button id="go-button">Go</button>
+        <button id="refresh-button">Refresh</button>
+        <button id="settings-button">Settings</button>
+    </div>
+    <div id="webview-container">
+        <div class="webview-tab active">
+            <webview id="initialWebview" src="https://www.google.com"></webview>
+        </div>
+    </div>
+    <div id="settings-panel">
+        <label>Search Engine:
+            <select id="search-engine-select">
+                <option value="google">Google</option>
+                <option value="bing">Bing</option>
+            </select>
+        </label>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const webviewContainer = document.getElementById('webview-container');
+            const urlInput = document.getElementById('url-input');
+            const goButton = document.getElementById('go-button');
+            const homeButton = document.getElementById('home-button');
+            const settingsButton = document.getElementById('settings-button');
+            const settingsPanel = document.getElementById('settings-panel');
+            const searchEngineSelect = document.getElementById('search-engine-select');
+            const refreshButton = document.getElementById('refresh-button');
+            const backButton = document.getElementById('back-button');
+            const newTabButton = document.getElementById('new-tab-button');
+            const tabBar = document.getElementById('tab-bar');
+
+            let currentSearchEngine = 'google';
+            let tabCount = 1;
+            const maxTabs = 15; // Maximum number of tabs allowed
+
+            function createTab(url = null) {
+                if (tabCount > maxTabs) {
+                    alert('Maximum of 15 tabs allowed.');
+                    return;
+                }
+                if (url === null) {
+                    url = currentSearchEngine === 'google' ? "https://www.google.com" : "https://www.bing.com";
+                }
+                const tab = document.createElement('div');
+                tab.className = 'tab';
+                tab.textContent = `Tab ${tabCount}`;
+                tab.dataset.tabId = tabCount;
+
+                const closeButton = document.createElement('span');
+                closeButton.className = 'close-tab';
+                closeButton.textContent = 'x';
+                closeButton.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    closeTab(tab.dataset.tabId);
+                });
+
+                tab.appendChild(closeButton);
+                tabBar.appendChild(tab);
+
+                const webviewTab = document.createElement('div');
+                webviewTab.className = 'webview-tab';
+                webviewTab.dataset.tabId = tabCount;
+                webviewTab.innerHTML = `<webview src="${url}"></webview>`;
+                webviewContainer.appendChild(webviewTab);
+
+                tab.addEventListener('click', () => {
+                    switchTab(tab.dataset.tabId);
+                });
+
+                tabCount++;
+                switchTab(tab.dataset.tabId);
+            }
+
+            function closeTab(tabId) {
+                console.log("Closing tab:", tabId);
+                const tabs = document.querySelectorAll('.tab');
+                const webviewTabs = document.querySelectorAll('.webview-tab');
+
+                if (tabs.length <= 1) {
+                    alert("You must have at least one tab open.");
+                    return;
+                }
+
+                const tabElement = document.querySelector(`.tab[data-tab-id="${tabId}"]`);
+                const webviewTabElement = document.querySelector(`.webview-tab[data-tab-id="${tabId}"]`);
+
+                // Prevent closing the first tab
+                if (tabElement && tabElement.dataset.tabId === "1") {
+                    alert("Cannot close the first tab.");
+                    return;
+                }
+
+                if (tabElement) {
+                    tabElement.remove();
+                }
+                if (webviewTabElement) {
+                    webviewTabElement.remove();
+                }
+
+                tabCount--;
+
+                if (tabs.length > 1) {
+                    switchTab(document.querySelectorAll('.tab')[0].dataset.tabId);
+                }
+                console.log("Switching to tab:", document.querySelectorAll('.tab')[0].dataset.tabId);
+            }
+
+            function switchTab(tabId) {
+                console.log("Switching to tab:", tabId);
+                document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelectorAll('.webview-tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelector(`.tab[data-tab-id="${tabId}"]`).classList.add('active');
+                document.querySelector(`.webview-tab[data-tab-id="${tabId}"]`).classList.add('active');
+                const activeWebview = document.querySelector(`.webview-tab[data-tab-id="${tabId}"] webview`);
+                urlInput.value = activeWebview.getURL();
+                activeWebview.setZoomLevel(0);
+            }
+
+            newTabButton.addEventListener('click', () => {
+                createTab();
+            });
+
+            goButton.addEventListener('click', () => {
+                loadURL();
+            });
+
+            homeButton.addEventListener('click', () => {
+                loadHome();
+            });
+
+            refreshButton.addEventListener('click', () => {
+                getActiveWebview().reload();
+            });
+
+            backButton.addEventListener('click', () => {
+                getActiveWebview().goBack();
+            });
+
+            urlInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    loadURL();
+                }
+            });
+
+            function loadURL() {
+                let url = urlInput.value;
+                if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                    url = currentSearchEngine === 'google' ? `https://www.google.com/search?q=${encodeURIComponent(url)}` : `https://www.bing.com/search?q=${encodeURIComponent(url)}`;
+                }
+                getActiveWebview().src = url;
+            }
+
+            function loadHome() {
+                getActiveWebview().src = currentSearchEngine === 'google' ? "https://www.google.com" : "https://www.bing.com";
+                urlInput.value = currentSearchEngine === 'google' ? "https://www.google.com" : "https://www.bing.com";
+            }
+
+            function getActiveWebview() {
+                return document.querySelector('.webview-tab.active webview');
+            }
+
+            getActiveWebview().addEventListener('did-finish-load', () => {
+                urlInput.value = getActiveWebview().getURL();
+            });
+
+            settingsButton.addEventListener('click', () => {
+                settingsPanel.style.display = (settingsPanel.style.display === 'block') ? 'none' : 'block';
+            });
+
+            searchEngineSelect.addEventListener('change', (event) => {
+                currentSearchEngine = event.target.value;
+            });
+
+            createTab();
+        });
+    </script>
+</body>
+</html>
